@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include <opencv2/opencv.hpp>
-#include <hk_camera/libMVSapi/MvCameraControl.h>
-#include <vector>
-#include <queue>
-#include <mutex>
-#include <thread>
 #include <atomic>
+#include <hk_camera/libMVSapi/MvCameraControl.h>
+#include <mutex>
+#include <opencv2/opencv.hpp>
+#include <queue>
+#include <thread>
+#include <vector>
 
-struct CameraParams
-{
+struct CameraParams {
+  std::string serial_number;
+
   int exposure_mode;
   float exposure_time;
   int exposure_auto;
@@ -46,17 +47,18 @@ public:
   ~CameraManager();
 
   bool init();
+  bool init(const std::vector<CameraParams> &configs);
   bool start();
   void stop();
   void triggerAll();
-  bool getImage(int idx, cv::Mat& image);
+  bool getImage(int idx, cv::Mat &image);
   int numCameras();
-  void* getHandle(size_t index) const;
-  int setParameter(void* dev_handle_, CameraParams& config);
+  void *getHandle(size_t index) const;
+  int setParameter(void *dev_handle_, CameraParams &config);
 
 private:
   struct CameraContext {
-    void* handle = nullptr;
+    void *handle = nullptr;
     std::queue<cv::Mat> image_queue;
     std::atomic<bool> running{false};
     std::mutex mtx;
@@ -64,16 +66,16 @@ private:
     CameraParams params;
 
     CameraContext() = default;
-    CameraContext(const CameraContext&) = delete;
-    CameraContext& operator=(const CameraContext&) = delete;
+    CameraContext(const CameraContext &) = delete;
+    CameraContext &operator=(const CameraContext &) = delete;
 
-    CameraContext(CameraContext&& other) noexcept {
+    CameraContext(CameraContext &&other) noexcept {
       handle = other.handle;
       image_queue = std::move(other.image_queue);
       running.store(other.running.load());
     }
 
-    CameraContext& operator=(CameraContext&& other) noexcept {
+    CameraContext &operator=(CameraContext &&other) noexcept {
       if (this != &other) {
         handle = other.handle;
         image_queue = std::move(other.image_queue);
@@ -89,7 +91,13 @@ private:
   std::thread trigger_thread_;
   std::atomic<bool> running_{false};
 
-  static void __stdcall imageCallback(unsigned char* pData, MV_FRAME_OUT_INFO_EX* pFrameInfo, void* pUser);
-  static void enqueueImage(CameraContext& ctx, unsigned char* data, MV_FRAME_OUT_INFO_EX* info);
-};
+  static void __stdcall imageCallback(unsigned char *pData,
+                                      MV_FRAME_OUT_INFO_EX *pFrameInfo,
+                                      void *pUser);
+  static void enqueueImage(CameraContext &ctx, unsigned char *data,
+                           MV_FRAME_OUT_INFO_EX *info);
 
+  bool createHandle(const MV_CC_DEVICE_INFO* info, CameraContext& ctx);
+
+  bool doInit(const std::vector<CameraParams>& configs);
+};

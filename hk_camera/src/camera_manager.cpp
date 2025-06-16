@@ -16,63 +16,81 @@ CameraManager::~CameraManager() {
 }
 
 bool CameraManager::init() {
-  int nRet = MV_CC_Initialize();
-  if (nRet != MV_OK) {
-    std::cerr << "MV_CC_Initialize failed: 0x" << std::hex << nRet << std::endl;
+  std::vector<CameraParams> cfgs;
+  return doInit(cfgs);
+}
+
+bool CameraManager::init(const std::vector<CameraParams>& configs) {
+  return doInit(configs);
+}
+
+bool CameraManager::doInit(const std::vector<CameraParams>& configs) {
+  int ret = MV_CC_Initialize();
+  if (ret != MV_OK) {
+    std::cerr << "MV_CC_Initialize failed: 0x" << std::hex << ret << std::dec << std::endl;
     return false;
   }
 
   MV_CC_DEVICE_INFO_LIST dev_list;
   memset(&dev_list, 0, sizeof(dev_list));
-  nRet = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &dev_list);
-  if (nRet != MV_OK || dev_list.nDeviceNum == 0) {
-    std::cerr << "No camera found or MV_CC_EnumDevices error: 0x" << std::hex
-              << nRet << std::endl;
+  ret = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &dev_list);
+  if (ret != MV_OK || dev_list.nDeviceNum == 0) {
+    std::cerr << "EnumDevices failed or no device: 0x" << std::hex << ret << std::dec << std::endl;
     return false;
   }
 
   cameras_.clear();
-  cameras_.reserve(dev_list.nDeviceNum);
-  std::cout << "Detected " << dev_list.nDeviceNum << " camera(s)." << std::endl;
+  cameras_.reserve(configs.empty() ? dev_list.nDeviceNum : configs.size());
 
-  for (unsigned i = 0; i < dev_list.nDeviceNum; ++i) {
-    cameras_.emplace_back();
-    CameraContext &ctx = cameras_.back();
-
-    nRet = MV_CC_CreateHandle(&ctx.handle, dev_list.pDeviceInfo[i]);
-    if (nRet != MV_OK) {
-      std::cerr << "CreateHandle failed for camera " << i << ": 0x"
-                << std::hex << nRet << std::endl;
-      cameras_.pop_back();
-      continue;
+  for (unsigned i = 0; i < (configs.empty() ? dev_list.nDeviceNum : configs.size()); ++i) {
+    CameraParams cfg;
+    if (!configs.empty()) {
+      cfg = configs[i];
     }
-    nRet = MV_CC_OpenDevice(ctx.handle);
-    if (nRet != MV_OK) {
-      std::cerr << "OpenDevice failed for camera " << i << ": 0x"
-                << std::hex << nRet << std::endl;
-      MV_CC_DestroyHandle(ctx.handle);
-      cameras_.pop_back();
-      continue;
+    for (unsigned j = 0; j < dev_list.nDeviceNum; ++j) {
+      std::string sn;
+      auto* info = dev_list.pDeviceInfo[j];
+      if (info->nTLayerType == MV_USB_DEVICE) {
+        sn = reinterpret_cast<char*>(info->SpecialInfo.stUsb3VInfo.chSerialNumber);
+      }
+      if (!configs.empty() && sn != cfg.serial_number) continue;
+
+      cameras_.emplace_back();
+      auto& ctx = cameras_.back();
+      ctx.params = cfg;
+      ctx.serial_number = sn;
+
+      if (!createHandle(info, ctx)) {
+        cameras_.pop_back();
+        std::cerr << "Failed createHandle for S/N=" << sn << std::endl;
+      } else {
+        setParameter(ctx.handle, ctx.params);
+        std::cout << "Initialized camera S/N=" << sn << std::endl;
+      }
+      break;
     }
-
-    MV_CC_SetEnumValue(ctx.handle, "TriggerMode", 1);
-    MV_CC_SetEnumValue(ctx.handle, "TriggerSource", MV_TRIGGER_SOURCE_SOFTWARE);
-    MV_CC_SetBoolValue(ctx.handle, "AcquisitionFrameRateEnable", false);
-
-    if (dev_list.pDeviceInfo[i]->nTLayerType == MV_USB_DEVICE) {
-      auto &usbInfo = dev_list.pDeviceInfo[i]->SpecialInfo.stUsb3VInfo;
-      ctx.serial_number =
-          std::string(reinterpret_cast<char *>(usbInfo.chSerialNumber));
-    } else {
-      ctx.serial_number = "UNKNOWN";
-    }
-
-    MV_CC_RegisterImageCallBackEx(ctx.handle, imageCallback, &ctx);
-    ctx.running = true;
   }
 
   std::cout << "Total initialized cameras: " << cameras_.size() << std::endl;
   return !cameras_.empty();
+}
+
+bool CameraManager::createHandle(const MV_CC_DEVICE_INFO* info, CameraContext& ctx) {
+  int ret = MV_CC_CreateHandle(&ctx.handle, const_cast<MV_CC_DEVICE_INFO*>(info));
+  if (ret != MV_OK) return false;
+  ret = MV_CC_OpenDevice(ctx.handle);
+  if (ret != MV_OK) {
+    MV_CC_DestroyHandle(ctx.handle);
+    return false;
+  }
+
+  MV_CC_SetEnumValue(ctx.handle, "TriggerMode", 1);
+  MV_CC_SetEnumValue(ctx.handle, "TriggerSource", MV_TRIGGER_SOURCE_SOFTWARE);
+  MV_CC_SetBoolValue(ctx.handle, "AcquisitionFrameRateEnable", false);
+
+  MV_CC_RegisterImageCallBackEx(ctx.handle, imageCallback, &ctx);
+  ctx.running = true;
+  return true;
 }
 
 bool CameraManager::start() {
