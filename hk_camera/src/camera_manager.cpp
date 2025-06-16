@@ -1,4 +1,3 @@
-// camera_manager.cpp
 #include "hk_camera/camera_manager.h"
 #include <cstring>
 #include <iostream>
@@ -32,6 +31,7 @@ bool CameraManager::init() {
     return false;
   }
 
+  cameras_.clear();
   cameras_.reserve(dev_list.nDeviceNum);
   std::cout << "Detected " << dev_list.nDeviceNum << " camera(s)." << std::endl;
 
@@ -41,15 +41,17 @@ bool CameraManager::init() {
 
     nRet = MV_CC_CreateHandle(&ctx.handle, dev_list.pDeviceInfo[i]);
     if (nRet != MV_OK) {
-      std::cerr << "CreateHandle failed for camera " << i << ": 0x" << std::hex
-                << nRet << std::endl;
+      std::cerr << "CreateHandle failed for camera " << i << ": 0x"
+                << std::hex << nRet << std::endl;
+      cameras_.pop_back();
       continue;
     }
     nRet = MV_CC_OpenDevice(ctx.handle);
     if (nRet != MV_OK) {
-      std::cerr << "OpenDevice failed for camera " << i << ": 0x" << std::hex
-                << nRet << std::endl;
+      std::cerr << "OpenDevice failed for camera " << i << ": 0x"
+                << std::hex << nRet << std::endl;
       MV_CC_DestroyHandle(ctx.handle);
+      cameras_.pop_back();
       continue;
     }
 
@@ -64,13 +66,9 @@ bool CameraManager::init() {
     } else {
       ctx.serial_number = "UNKNOWN";
     }
-    ctx.running = true;
 
-    CameraContext &ref = cameras_.back();
-    MV_CC_RegisterImageCallBackEx(ref.handle, imageCallback, &ref);
-    MV_CC_StartGrabbing(ref.handle);
-    std::cout << "Camera " << i << " (S/N: " << ref.serial_number
-              << ") initialized and grabbing." << std::endl;
+    MV_CC_RegisterImageCallBackEx(ctx.handle, imageCallback, &ctx);
+    ctx.running = true;
   }
 
   std::cout << "Total initialized cameras: " << cameras_.size() << std::endl;
@@ -78,6 +76,18 @@ bool CameraManager::init() {
 }
 
 bool CameraManager::start() {
+  for (size_t i = 0; i < cameras_.size(); ++i) {
+    CameraContext &ctx = cameras_[i];
+    int nRet = MV_CC_StartGrabbing(ctx.handle);
+    if (nRet != MV_OK) {
+      std::cerr << "StartGrabbing failed for camera " << i << ": 0x"
+                << std::hex << nRet << std::endl;
+    } else {
+      std::cout << "Camera " << i << " (S/N: " << ctx.serial_number
+                << ") started grabbing." << std::endl;
+    }
+  }
+
   running_ = true;
   trigger_thread_ = std::thread([this]() {
     while (running_) {

@@ -55,7 +55,6 @@ public:
   int setParameter(void* dev_handle_, CameraParams& config);
 
 private:
-  // 相机初始化参数结构体
   struct CameraContext {
     void* handle = nullptr;
     std::queue<cv::Mat> image_queue;
@@ -68,12 +67,10 @@ private:
     CameraContext(const CameraContext&) = delete;
     CameraContext& operator=(const CameraContext&) = delete;
 
-    // 手动定义移动构造函数
     CameraContext(CameraContext&& other) noexcept {
       handle = other.handle;
       image_queue = std::move(other.image_queue);
       running.store(other.running.load());
-      // mtx 不可移动，使用默认初始化
     }
 
     CameraContext& operator=(CameraContext&& other) noexcept {
