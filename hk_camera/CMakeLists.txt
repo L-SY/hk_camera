@@ -17,21 +17,10 @@ link_directories(
         /home/lsy/Downloads/MVS_STD_V3.0.1_241128/MVS-3.0.1_x86_64_20241128/MVS/lib/64         # 替换为你的SDK库路径
 )
 
-add_executable(test_single_camera
-        test/test_single_camera.cpp
-        src/camera_manager.cpp
-)
-
-target_link_libraries(test_single_camera
-        ${OpenCV_LIBS}
-        MvCameraControl
-        pthread
-)
-
-add_executable(test_dual_camera
+add_executable(test_camera
         test/test_camera.cpp
         src/camera_manager.cpp)
-target_link_libraries(test_dual_camera
+target_link_libraries(test_camera
         ${catkin_LIBRARIES}
         MvCameraControl
         pthread
