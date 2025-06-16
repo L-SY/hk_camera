@@ -1,13 +1,13 @@
 // camera_manager.cpp
 #include "hk_camera/camera_manager.h"
-#include <iostream>
 #include <cstring>
+#include <iostream>
 
 CameraManager::CameraManager() {}
 
 CameraManager::~CameraManager() {
   stop();
-  for (auto& cam : cameras_) {
+  for (auto &cam : cameras_) {
     if (cam.handle) {
       MV_CC_DestroyHandle(cam.handle);
       cam.handle = nullptr;
@@ -27,7 +27,8 @@ bool CameraManager::init() {
   memset(&dev_list, 0, sizeof(dev_list));
   nRet = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &dev_list);
   if (nRet != MV_OK || dev_list.nDeviceNum == 0) {
-    std::cerr << "No camera found or MV_CC_EnumDevices error: 0x" << std::hex << nRet << std::endl;
+    std::cerr << "No camera found or MV_CC_EnumDevices error: 0x" << std::hex
+              << nRet << std::endl;
     return false;
   }
 
@@ -36,40 +37,40 @@ bool CameraManager::init() {
 
   for (unsigned i = 0; i < dev_list.nDeviceNum; ++i) {
     cameras_.emplace_back();
-    CameraContext& ctx = cameras_.back();
+    CameraContext &ctx = cameras_.back();
 
-    // 创建并打开句柄
     nRet = MV_CC_CreateHandle(&ctx.handle, dev_list.pDeviceInfo[i]);
     if (nRet != MV_OK) {
-      std::cerr << "CreateHandle failed for camera " << i << ": 0x" << std::hex << nRet << std::endl;
+      std::cerr << "CreateHandle failed for camera " << i << ": 0x" << std::hex
+                << nRet << std::endl;
       continue;
     }
     nRet = MV_CC_OpenDevice(ctx.handle);
     if (nRet != MV_OK) {
-      std::cerr << "OpenDevice failed for camera " << i << ": 0x" << std::hex << nRet << std::endl;
+      std::cerr << "OpenDevice failed for camera " << i << ": 0x" << std::hex
+                << nRet << std::endl;
       MV_CC_DestroyHandle(ctx.handle);
       continue;
     }
 
-    // 配置触发模式
     MV_CC_SetEnumValue(ctx.handle, "TriggerMode", 1);
     MV_CC_SetEnumValue(ctx.handle, "TriggerSource", MV_TRIGGER_SOURCE_SOFTWARE);
     MV_CC_SetBoolValue(ctx.handle, "AcquisitionFrameRateEnable", false);
 
-    // 从设备信息中读取 USB3.0 相机序列号
     if (dev_list.pDeviceInfo[i]->nTLayerType == MV_USB_DEVICE) {
-      auto& usbInfo = dev_list.pDeviceInfo[i]->SpecialInfo.stUsb3VInfo;
-      ctx.serial_number = std::string(reinterpret_cast<char*>(usbInfo.chSerialNumber));
+      auto &usbInfo = dev_list.pDeviceInfo[i]->SpecialInfo.stUsb3VInfo;
+      ctx.serial_number =
+          std::string(reinterpret_cast<char *>(usbInfo.chSerialNumber));
     } else {
       ctx.serial_number = "UNKNOWN";
     }
     ctx.running = true;
 
-    // 注册回调并开始取流
-    CameraContext& ref = cameras_.back();
+    CameraContext &ref = cameras_.back();
     MV_CC_RegisterImageCallBackEx(ref.handle, imageCallback, &ref);
     MV_CC_StartGrabbing(ref.handle);
-    std::cout << "Camera " << i << " (S/N: " << ref.serial_number << ") initialized and grabbing." << std::endl;
+    std::cout << "Camera " << i << " (S/N: " << ref.serial_number
+              << ") initialized and grabbing." << std::endl;
   }
 
   std::cout << "Total initialized cameras: " << cameras_.size() << std::endl;
@@ -89,42 +90,211 @@ bool CameraManager::start() {
 
 void CameraManager::stop() {
   running_ = false;
-  if (trigger_thread_.joinable()) trigger_thread_.join();
-  for (auto& cam : cameras_) {
+  if (trigger_thread_.joinable())
+    trigger_thread_.join();
+  for (auto &cam : cameras_) {
     cam.running = false;
-    if (cam.handle) MV_CC_StopGrabbing(cam.handle);
+    if (cam.handle)
+      MV_CC_StopGrabbing(cam.handle);
   }
 }
 
 void CameraManager::triggerAll() {
-  for (auto& cam : cameras_) {
+  for (auto &cam : cameras_) {
     MV_CC_SetCommandValue(cam.handle, "TriggerSoftware");
   }
 }
 
-bool CameraManager::getImage(int cam_idx, cv::Mat& image) {
-  if (cam_idx < 0 || cam_idx >= static_cast<int>(cameras_.size())) return false;
-  auto& cam = cameras_[cam_idx];
+bool CameraManager::getImage(int cam_idx, cv::Mat &image) {
+  if (cam_idx < 0 || cam_idx >= static_cast<int>(cameras_.size()))
+    return false;
+  auto &cam = cameras_[cam_idx];
   std::lock_guard<std::mutex> lock(cam.mtx);
-  if (cam.image_queue.empty()) return false;
+  if (cam.image_queue.empty())
+    return false;
   image = cam.image_queue.front();
   cam.image_queue.pop();
   return true;
 }
 
-int CameraManager::numCameras() {
-  return static_cast<int>(cameras_.size());
-}
+int CameraManager::numCameras() { return static_cast<int>(cameras_.size()); }
 
-void __stdcall CameraManager::imageCallback(unsigned char* pData, MV_FRAME_OUT_INFO_EX* pFrameInfo, void* pUser) {
-  if (!pData || !pFrameInfo || !pUser) return;
-  CameraContext* ctx = static_cast<CameraContext*>(pUser);
-//  std::cout << "[Callback] Received image from camera (S/N: " << ctx->serial_number << ")" << std::endl;
+void __stdcall CameraManager::imageCallback(unsigned char *pData,
+                                            MV_FRAME_OUT_INFO_EX *pFrameInfo,
+                                            void *pUser) {
+  if (!pData || !pFrameInfo || !pUser)
+    return;
+  CameraContext *ctx = static_cast<CameraContext *>(pUser);
   enqueueImage(*ctx, pData, pFrameInfo);
 }
 
-void CameraManager::enqueueImage(CameraContext& ctx, unsigned char* data, MV_FRAME_OUT_INFO_EX* info) {
+void CameraManager::enqueueImage(CameraContext &ctx, unsigned char *data,
+                                 MV_FRAME_OUT_INFO_EX *info) {
   cv::Mat img(info->nHeight, info->nWidth, CV_8UC1, data);
   std::lock_guard<std::mutex> lock(ctx.mtx);
   ctx.image_queue.push(img.clone());
+}
+
+void *CameraManager::getHandle(size_t index) const {
+  if (index >= cameras_.size())
+    return nullptr;
+  return cameras_[index].handle;
+}
+
+int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
+  int ret;
+
+  if (config.exposure_auto) {
+    _MVCC_FLOATVALUE_T val;
+    ret = MV_CC_SetIntValueEx(dev_handle_, "AutoExposureTimeLowerLimit",
+                              config.auto_exposure_time_min);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] AutoExposureTimeLowerLimit failed: 0x" << std::hex
+                << ret << std::dec << std::endl;
+
+    ret = MV_CC_SetIntValueEx(dev_handle_, "AutoExposureTimeUpperLimit",
+                              config.auto_exposure_time_max);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] AutoExposureTimeUpperLimit failed: 0x" << std::hex
+                << ret << std::dec << std::endl;
+
+    ret = MV_CC_SetEnumValue(dev_handle_, "ExposureAuto",
+                             MV_EXPOSURE_AUTO_MODE_CONTINUOUS);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] ExposureAuto CONTINUOUS failed: 0x" << std::hex
+                << ret << std::dec << std::endl;
+
+    ret = MV_CC_GetFloatValue(dev_handle_, "ExposureTime", &val);
+    if (ret == MV_OK) {
+      config.exposure_time = val.fCurValue;
+    } else {
+      std::cerr << "[WARN] Get ExposureTime failed: 0x" << std::hex << ret
+                << std::dec << std::endl;
+    }
+  } else {
+    ret = MV_CC_SetEnumValue(dev_handle_, "ExposureAuto",
+                             MV_EXPOSURE_AUTO_MODE_OFF);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] ExposureAuto OFF failed: 0x" << std::hex << ret
+                << std::dec << std::endl;
+
+    ret =
+        MV_CC_SetFloatValue(dev_handle_, "ExposureTime", config.exposure_time);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] Set ExposureTime failed: 0x" << std::hex << ret
+                << std::dec << std::endl;
+  }
+
+  if (config.gain_auto) {
+    _MVCC_FLOATVALUE_T val{};
+    ret = MV_CC_SetFloatValue(dev_handle_, "AutoGainLowerLimit",
+                              config.auto_gain_min);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] AutoGainLowerLimit failed: 0x" << std::hex << ret
+                << std::dec << std::endl;
+
+    ret = MV_CC_SetFloatValue(dev_handle_, "AutoGainUpperLimit",
+                              config.auto_gain_max);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] AutoGainUpperLimit failed: 0x" << std::hex << ret
+                << std::dec << std::endl;
+
+    ret = MV_CC_SetEnumValue(dev_handle_, "GainAuto", MV_GAIN_MODE_CONTINUOUS);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] GainAuto CONTINUOUS failed: 0x" << std::hex << ret
+                << std::dec << std::endl;
+
+    ret = MV_CC_GetFloatValue(dev_handle_, "Gain", &val);
+    if (ret == MV_OK) {
+      config.gain_value = val.fCurValue;
+    } else {
+      std::cerr << "[WARN] Get Gain failed: 0x" << std::hex << ret << std::dec
+                << std::endl;
+    }
+  } else {
+    _MVCC_FLOATVALUE_T val;
+    ret = MV_CC_SetEnumValue(dev_handle_, "GainAuto", MV_GAIN_MODE_OFF);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] GainAuto OFF failed: 0x" << std::hex << ret
+                << std::dec << std::endl;
+
+    ret = MV_CC_SetFloatValue(dev_handle_, "Gain", config.gain_value);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] Set Gain failed: 0x" << std::hex << ret << std::dec
+                << std::endl;
+
+    ret = MV_CC_GetFloatValue(dev_handle_, "Gain", &val);
+    if (ret == MV_OK) {
+      config.gain_value = val.fCurValue;
+    } else {
+      std::cerr << "[WARN] Get Gain failed: 0x" << std::hex << ret << std::dec
+                << std::endl;
+    }
+  }
+
+  ret = MV_CC_SetEnumValue(dev_handle_, "BalanceWhiteAuto",
+                           MV_BALANCEWHITE_AUTO_OFF);
+  if (ret != MV_OK)
+    std::cerr << "[WARN] Disable WhiteAuto failed: 0x" << std::hex << ret
+              << std::dec << std::endl;
+
+  if (config.balance_white_auto) {
+    ret = MV_CC_SetEnumValue(dev_handle_, "BalanceWhiteAuto",
+                             MV_BALANCEWHITE_AUTO_CONTINUOUS);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] WhiteAuto CONTINUOUS failed: 0x" << std::hex << ret
+                << std::dec << std::endl;
+  }
+
+  ret = MV_CC_SetBoolValue(dev_handle_, "GammaEnable", config.gamma_enable);
+  if (ret != MV_OK)
+    std::cerr << "[WARN] Set GammaEnable failed: 0x" << std::hex << ret
+              << std::dec << std::endl;
+
+  if (config.gamma_enable) {
+    switch (config.gamma_selector) {
+    case 1:
+      ret = MV_CC_SetEnumValue(dev_handle_, "GammaSelector",
+                               MV_GAMMA_SELECTOR_USER);
+      if (ret != MV_OK)
+        std::cerr << "[WARN] GammaSelector USER failed: 0x" << std::hex << ret
+                  << std::dec << std::endl;
+      ret = MV_CC_SetGamma(dev_handle_, config.gamma_value);
+      if (ret != MV_OK)
+        std::cerr << "[WARN] SetGamma failed: 0x" << std::hex << ret << std::dec
+                  << std::endl;
+      break;
+    case 2:
+      ret = MV_CC_SetEnumValue(dev_handle_, "GammaSelector",
+                               MV_GAMMA_SELECTOR_SRGB);
+      if (ret != MV_OK)
+        std::cerr << "[WARN] GammaSelector sRGB failed: 0x" << std::hex << ret
+                  << std::dec << std::endl;
+      break;
+    default:
+      break;
+    }
+  }
+
+  ret = MV_CC_SetIntValueEx(dev_handle_, "Width", config.width);
+  if (ret != MV_OK)
+    std::cerr << "[WARN] Set Width failed: 0x" << std::hex << ret << std::dec
+              << std::endl;
+
+  ret = MV_CC_SetIntValueEx(dev_handle_, "Height", config.height);
+  if (ret != MV_OK)
+    std::cerr << "[WARN] Set Height failed: 0x" << std::hex << ret << std::dec
+              << std::endl;
+
+  ret = MV_CC_SetIntValueEx(dev_handle_, "OffsetX", config.offset_x);
+  if (ret != MV_OK)
+    std::cerr << "[WARN] Set OffsetX failed: 0x" << std::hex << ret << std::dec
+              << std::endl;
+
+  ret = MV_CC_SetIntValueEx(dev_handle_, "OffsetY", config.offset_y);
+  if (ret != MV_OK)
+    std::cerr << "[WARN] Set OffsetY failed: 0x" << std::hex << ret << std::dec
+              << std::endl;
+
+  return MV_OK;
 }

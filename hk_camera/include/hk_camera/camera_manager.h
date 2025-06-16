@@ -12,24 +12,57 @@
 #include <thread>
 #include <atomic>
 
+struct CameraParams
+{
+  int exposure_mode;
+  float exposure_time;
+  int exposure_auto;
+  int64_t auto_exposure_time_min;
+  int64_t auto_exposure_time_max;
+
+  float gain_value;
+  int gain_auto;
+  float auto_gain_min;
+  float auto_gain_max;
+
+  // Gamma Notice cs050 and cs020 is not suppose this config!!!
+  int gamma_selector;
+  float gamma_value;
+  bool gamma_enable;
+
+  // ROI Notice do not suppose dynamic config!!!
+  int64_t width;
+  int64_t height;
+  int64_t offset_x;
+  int64_t offset_y;
+
+  // Color
+  int balance_white_auto;
+};
+
 class CameraManager {
 public:
   CameraManager();
   ~CameraManager();
 
-  bool init();              // 初始化并打开所有相机
-  bool start();             // 启动统一软触发线程
-  void stop();              // 停止采图与释放资源
-  void triggerAll();        // 手动触发所有相机一次
-  bool getImage(int idx, cv::Mat& image); // 获取指定相机图像帧
+  bool init();
+  bool start();
+  void stop();
+  void triggerAll();
+  bool getImage(int idx, cv::Mat& image);
   int numCameras();
+  void* getHandle(size_t index) const;
+  int setParameter(void* dev_handle_, CameraParams& config);
+
 private:
+  // 相机初始化参数结构体
   struct CameraContext {
     void* handle = nullptr;
     std::queue<cv::Mat> image_queue;
     std::atomic<bool> running{false};
     std::mutex mtx;
     std::string serial_number;
+    CameraParams params;
 
     CameraContext() = default;
     CameraContext(const CameraContext&) = delete;
@@ -48,7 +81,6 @@ private:
         handle = other.handle;
         image_queue = std::move(other.image_queue);
         running.store(other.running.load());
-        // mtx 不可移动，使用默认初始化
       }
       return *this;
     }
