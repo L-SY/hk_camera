@@ -24,7 +24,6 @@ bool CameraManager::init() {
   }
 
   MV_CC_DEVICE_INFO_LIST dev_list;
-  cameras_.reserve(dev_list.nDeviceNum);
   memset(&dev_list, 0, sizeof(dev_list));
   nRet = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &dev_list);
   if (nRet != MV_OK || dev_list.nDeviceNum == 0) {
@@ -32,6 +31,7 @@ bool CameraManager::init() {
     return false;
   }
 
+  cameras_.reserve(dev_list.nDeviceNum);
   std::cout << "Detected " << dev_list.nDeviceNum << " camera(s)." << std::endl;
 
   for (unsigned i = 0; i < dev_list.nDeviceNum; ++i) {
@@ -81,7 +81,7 @@ bool CameraManager::start() {
   trigger_thread_ = std::thread([this]() {
     while (running_) {
       triggerAll();
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
   });
   return true;
@@ -112,14 +112,14 @@ bool CameraManager::getImage(int cam_idx, cv::Mat& image) {
   return true;
 }
 
-size_t CameraManager::numCameras() {
-  return cameras_.size();
+int CameraManager::numCameras() {
+  return static_cast<int>(cameras_.size());
 }
 
 void __stdcall CameraManager::imageCallback(unsigned char* pData, MV_FRAME_OUT_INFO_EX* pFrameInfo, void* pUser) {
   if (!pData || !pFrameInfo || !pUser) return;
   CameraContext* ctx = static_cast<CameraContext*>(pUser);
-  std::cout << "[Callback] Received image from camera (S/N: " << ctx->serial_number << ")" << std::endl;
+//  std::cout << "[Callback] Received image from camera (S/N: " << ctx->serial_number << ")" << std::endl;
   enqueueImage(*ctx, pData, pFrameInfo);
 }
 

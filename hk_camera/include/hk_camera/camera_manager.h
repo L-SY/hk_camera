@@ -22,7 +22,7 @@ public:
   void stop();              // 停止采图与释放资源
   void triggerAll();        // 手动触发所有相机一次
   bool getImage(int idx, cv::Mat& image); // 获取指定相机图像帧
-  size_t numCameras();
+  int numCameras();
 private:
   struct CameraContext {
     void* handle = nullptr;
