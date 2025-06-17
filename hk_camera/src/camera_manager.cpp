@@ -118,7 +118,7 @@ bool CameraManager::start() {
   trigger_thread_ = std::thread([this]() {
     while (running_) {
       triggerAll();
-      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   });
   return true;
@@ -164,25 +164,38 @@ void __stdcall CameraManager::imageCallback(unsigned char *pData,
   enqueueImage(*ctx, pData, pFrameInfo);
 }
 
-void CameraManager::enqueueImage(CameraContext &ctx, unsigned char *data,
+void CameraManager::enqueueImage(CameraContext &ctx,
+                                 unsigned char *data,
                                  MV_FRAME_OUT_INFO_EX *info) {
   int W = info->nWidth;
   int H = info->nHeight;
   int L = info->nFrameLen;
   cv::Mat img;
 
-  if (L == W * H) {
-    std::cout << "  ➜ Detected Mono8 via FrameLen" << std::endl;
+  size_t need = static_cast<size_t>(W) * static_cast<size_t>(H) * 3;
+  if (ctx.cvt_buf.size() < need)
+    ctx.cvt_buf.resize(need);
+
+  MV_CC_PIXEL_CONVERT_PARAM_EX conv{};
+  conv.nWidth         = W;
+  conv.nHeight        = H;
+  conv.pSrcData       = data;
+  conv.nSrcDataLen    = L;
+  conv.enSrcPixelType = info->enPixelType;
+  conv.enDstPixelType = PixelType_Gvsp_BGR8_Packed;
+  conv.pDstBuffer     = ctx.cvt_buf.data();
+  conv.nDstBufferSize = static_cast<uint32_t>(need);
+
+  int ret = MV_CC_ConvertPixelTypeEx(ctx.handle, &conv);
+  if (ret != MV_OK) {
+    std::cerr << "[WARN] ConvertPixelTypeEx failed: 0x"
+              << std::hex << ret << std::dec << std::endl;
+    // 失败时退回显示灰度
     img = cv::Mat(H, W, CV_8UC1, data).clone();
+  } else {
+    img = cv::Mat(H, W, CV_8UC3, ctx.cvt_buf.data()).clone();
   }
-  else if (L == W * H * 3) {
-    img = cv::Mat(H, W, CV_8UC3, data).clone();
-    cv::cvtColor(img, img, cv::COLOR_RGB2BGR);
-  }
-  else {
-    std::cout << "  ➜ Unknown format, fallback to Mono8" << std::endl;
-    img = cv::Mat(H, W, CV_8UC1, data).clone();
-  }
+
   std::lock_guard<std::mutex> lock(ctx.mtx);
   ctx.image_queue.push(img.clone());
 }
@@ -196,10 +209,11 @@ void *CameraManager::getHandle(size_t index) const {
 int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
   int ret;
 
-  ret = MV_CC_SetEnumValue(dev_handle_, "PixelFormat", PixelType_Gvsp_RGB8_Packed);
+//  ret = MV_CC_SetEnumValue(dev_handle_, "PixelFormat",
+//                           PixelType_Gvsp_BayerRG8);
   if (ret != MV_OK)
-    std::cerr << "[WARN] PixelFormat RGB8_Packed failed: 0x"
-              << std::hex << ret << std::dec << std::endl;
+    std::cerr << "[WARN] PixelFormat RGB8_Packed failed: 0x" << std::hex << ret
+              << std::dec << std::endl;
   else
     std::cout << "[INFO] PixelFormat RGB8_Packed set successfully" << std::endl;
 
@@ -305,14 +319,12 @@ int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
                 << std::dec << std::endl;
   }
 
-  ret = MV_CC_SetBoolValue(dev_handle_, "GammaEnable", config.gamma_enable);
-  if (ret != MV_OK)
-    std::cerr << "[WARN] Set GammaEnable failed: 0x" << std::hex << ret
-              << std::dec << std::endl;
-
-  if (config.gamma_enable) {
-    switch (config.gamma_selector) {
+  switch (config.gamma_selector) {
     case 1:
+      ret = MV_CC_SetBoolValue(dev_handle_, "GammaEnable", true);
+      if (ret != MV_OK)
+        std::cerr << "[WARN] Set GammaEnable failed: 0x" << std::hex << ret
+                  << std::dec << std::endl;
       ret = MV_CC_SetEnumValue(dev_handle_, "GammaSelector",
                                MV_GAMMA_SELECTOR_USER);
       if (ret != MV_OK)
@@ -324,6 +336,10 @@ int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
                   << std::endl;
       break;
     case 2:
+      ret = MV_CC_SetBoolValue(dev_handle_, "GammaEnable", true);
+      if (ret != MV_OK)
+        std::cerr << "[WARN] Set GammaEnable failed: 0x" << std::hex << ret
+                  << std::dec << std::endl;
       ret = MV_CC_SetEnumValue(dev_handle_, "GammaSelector",
                                MV_GAMMA_SELECTOR_SRGB);
       if (ret != MV_OK)
@@ -331,8 +347,11 @@ int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
                   << std::dec << std::endl;
       break;
     default:
+      ret = MV_CC_SetBoolValue(dev_handle_, "GammaEnable", false);
+      if (ret != MV_OK)
+        std::cerr << "[WARN] Set GammaEnable failed: 0x" << std::hex << ret
+                  << std::dec << std::endl;
       break;
-    }
   }
 
   ret = MV_CC_SetIntValueEx(dev_handle_, "Width", config.width);

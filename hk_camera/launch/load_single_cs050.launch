@@ -6,6 +6,6 @@
           pkg="hk_camera"
           type="hk_camera_node"
           output="screen">
-        <rosparam file="$(find hk_camera)/config/camera.yaml" command="load"/>
+        <rosparam file="$(find hk_camera)/config/single_cs050.yaml" command="load"/>
     </node>
 </launch>

@@ -50,6 +50,34 @@ void HKCameraNode::reconfigCallback(size_t cam_idx, hk_camera::CameraConfig& con
            config.white_auto ? "true" : "false",
            config.gamma_selector,
            config.gamma_value);
+
+  CameraParams params = configs_[cam_idx];
+  // exposure
+  params.exposure_auto = config.exposure_auto;
+  params.exposure_time = static_cast<float>(config.exposure_value);
+  params.auto_exposure_time_min = static_cast<int64_t>(config.exposure_min);
+  params.auto_exposure_time_max = static_cast<int64_t>(config.exposure_max);
+  // gain
+  params.gain_auto = config.gain_auto;
+  params.gain_value = static_cast<float>(config.gain_value);
+  params.auto_gain_min = static_cast<float>(config.gain_min);
+  params.auto_gain_max = static_cast<float>(config.gain_max);
+  // white balance
+  params.balance_white_auto = config.white_auto;
+  // gamma
+  params.gamma_selector = config.gamma_selector;
+  params.gamma_value = static_cast<float>(config.gamma_value);
+  // roi can not change will use!!!
+
+  // 获取相机句柄并调用统一 setParameter
+  void* handle = cam_mgr_.getHandle(cam_idx);
+  int ret = cam_mgr_.setParameter(handle, params);
+  if (ret != MV_OK) {
+    ROS_WARN("[%s] setParameter failed: 0x%X", name.c_str(), ret);
+  }
+
+  // 保存更新备份
+  configs_[cam_idx] = params;
 }
 
 bool HKCameraNode::loadConfigs() {

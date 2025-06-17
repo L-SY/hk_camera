@@ -34,7 +34,6 @@ int main(int argc, char** argv) {
   params.balance_white_auto = true;
 
   // —— Gamma ——
-  params.gamma_enable   = true;
   params.gamma_selector = 1;    // 1=User,2=sRGB
   params.gamma_value    = 2.2f; // 仅在 User 模式下生效
 
@@ -64,14 +63,6 @@ int main(int argc, char** argv) {
               << (before.gain_auto ? "Auto" : "Manual")
               << " -> "
               << params.gain_value << "\n";
-
-    std::cout << "Gamma: "
-              << (before.gamma_enable ? "On" : "Off")
-              << " (Selector=" << before.gamma_selector << ")"
-              << " -> "
-              << (params.gamma_enable ? "On" : "Off")
-              << " (Selector=" << params.gamma_selector
-              << ", Value=" << params.gamma_value << ")\n";
 
     std::cout << "ROI: "
               << before.width << "x" << before.height

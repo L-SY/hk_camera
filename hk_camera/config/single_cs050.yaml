@@ -1,0 +1,23 @@
+cameras:
+  - name: cs050
+    serial_number: "DA6320570"
+    exposure:
+      auto: true
+      ae_lower_us: 15   # 自动曝光下限
+      ae_upper_us: 13319  # 自动曝光上限
+      mode: 0             # 0: Timed, 1: TriggerWidth
+      time_us: 5000       # 曝光时间（us）
+    gain:
+      auto: true         # 是否自动增益
+      gain_lower_db: 0.0  # 自动增益下限
+      gain_upper_db: 24.0 # 自动增益上限
+      value_db: 6.0       # 增益值 (dB)
+    white_balance:
+      auto: true
+    roi:
+      width: 2448
+      height: 2048
+      offset_x: 0
+      offset_y: 0
+
+loop_rate_hz: 200

@@ -30,7 +30,6 @@ struct CameraParams {
   // Gamma Notice cs050 and cs020 is not suppose this config!!!
   int gamma_selector;
   float gamma_value;
-  bool gamma_enable;
 
   // ROI Notice do not suppose dynamic config!!!
   int64_t width;
@@ -65,7 +64,7 @@ private:
     std::mutex mtx;
     std::string serial_number;
     CameraParams params;
-
+    std::vector<uint8_t> cvt_buf;
     CameraContext() = default;
     CameraContext(const CameraContext &) = delete;
     CameraContext &operator=(const CameraContext &) = delete;
