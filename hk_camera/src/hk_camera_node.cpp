@@ -18,8 +18,38 @@ HKCameraNode::HKCameraNode(ros::NodeHandle& nh, ros::NodeHandle& pnh)
     ROS_FATAL("CameraManager init failed");
     ros::shutdown();
   }
+
   cam_mgr_.start();
   setupPublishers();
+  initDynamicReconfigure();
+}
+
+void HKCameraNode::initDynamicReconfigure() {
+  dyn_servers_.resize(configs_.size());
+  for (size_t i = 0; i < configs_.size(); ++i) {
+    // NodeHandle in camera-specific namespace
+    ros::NodeHandle cam_pnh(pnh_, configs_[i].name);
+    auto server = std::make_shared<dynamic_reconfigure::Server<hk_camera::CameraConfig>>(cam_pnh);
+    dynamic_reconfigure::Server<hk_camera::CameraConfig>::CallbackType cb;
+    cb = boost::bind(&HKCameraNode::reconfigCallback, this, i, _1, _2);
+    server->setCallback(cb);
+    dyn_servers_[i] = server;
+
+    ROS_INFO("Dynamic reconfigure server created for camera: %s", configs_[i].name.c_str());
+  }
+}
+
+void HKCameraNode::reconfigCallback(size_t cam_idx, hk_camera::CameraConfig& config, uint32_t level) {
+  const auto& name = configs_[cam_idx].name;
+  ROS_INFO("[%s] Reconfigure: exp=%.1f (auto=%s), gain=%.1f (auto=%s), white_auto=%s, gamma_sel=%d, gamma=%.2f",
+           name.c_str(),
+           config.exposure_value,
+           config.exposure_auto ? "true" : "false",
+           config.gain_value,
+           config.gain_auto ? "true" : "false",
+           config.white_auto ? "true" : "false",
+           config.gamma_selector,
+           config.gamma_value);
 }
 
 bool HKCameraNode::loadConfigs() {

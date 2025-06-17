@@ -1,7 +1,3 @@
-//
-// Created by lsy on 25-6-17.
-//
-
 #pragma once
 
 #include <ros/ros.h>
@@ -20,6 +16,7 @@
  * - loads parameters from ROS param server
  * - initializes CameraManager with configs
  * - publishes images on separate topics per camera
+ * - supports dynamic_reconfigure for exposure, gain, white balance, gamma
  */
 class HKCameraNode {
 public:
@@ -29,6 +26,8 @@ public:
 private:
   bool loadConfigs();
   void setupPublishers();
+  void initDynamicReconfigure();
+  void reconfigCallback(size_t cam_idx, hk_camera::CameraConfig& config, uint32_t level);
 
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
@@ -37,4 +36,6 @@ private:
   std::vector<CameraParams> configs_;
   CameraManager cam_mgr_;
   int loop_rate_hz_;
+
+  std::vector<std::shared_ptr<dynamic_reconfigure::Server<hk_camera::CameraConfig>>> dyn_servers_;
 };
