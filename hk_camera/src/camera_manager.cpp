@@ -20,14 +20,15 @@ bool CameraManager::init() {
   return doInit(cfgs);
 }
 
-bool CameraManager::init(const std::vector<CameraParams>& configs) {
+bool CameraManager::init(const std::vector<CameraParams> &configs) {
   return doInit(configs);
 }
 
-bool CameraManager::doInit(const std::vector<CameraParams>& configs) {
+bool CameraManager::doInit(const std::vector<CameraParams> &configs) {
   int ret = MV_CC_Initialize();
   if (ret != MV_OK) {
-    std::cerr << "MV_CC_Initialize failed: 0x" << std::hex << ret << std::dec << std::endl;
+    std::cerr << "MV_CC_Initialize failed: 0x" << std::hex << ret << std::dec
+              << std::endl;
     return false;
   }
 
@@ -35,28 +36,32 @@ bool CameraManager::doInit(const std::vector<CameraParams>& configs) {
   memset(&dev_list, 0, sizeof(dev_list));
   ret = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &dev_list);
   if (ret != MV_OK || dev_list.nDeviceNum == 0) {
-    std::cerr << "EnumDevices failed or no device: 0x" << std::hex << ret << std::dec << std::endl;
+    std::cerr << "EnumDevices failed or no device: 0x" << std::hex << ret
+              << std::dec << std::endl;
     return false;
   }
 
   cameras_.clear();
   cameras_.reserve(configs.empty() ? dev_list.nDeviceNum : configs.size());
 
-  for (unsigned i = 0; i < (configs.empty() ? dev_list.nDeviceNum : configs.size()); ++i) {
+  for (unsigned i = 0;
+       i < (configs.empty() ? dev_list.nDeviceNum : configs.size()); ++i) {
     CameraParams cfg;
     if (!configs.empty()) {
       cfg = configs[i];
     }
     for (unsigned j = 0; j < dev_list.nDeviceNum; ++j) {
       std::string sn;
-      auto* info = dev_list.pDeviceInfo[j];
+      auto *info = dev_list.pDeviceInfo[j];
       if (info->nTLayerType == MV_USB_DEVICE) {
-        sn = reinterpret_cast<char*>(info->SpecialInfo.stUsb3VInfo.chSerialNumber);
+        sn = reinterpret_cast<char *>(
+            info->SpecialInfo.stUsb3VInfo.chSerialNumber);
       }
-      if (!configs.empty() && sn != cfg.serial_number) continue;
+      if (!configs.empty() && sn != cfg.serial_number)
+        continue;
 
       cameras_.emplace_back();
-      auto& ctx = cameras_.back();
+      auto &ctx = cameras_.back();
       ctx.params = cfg;
       ctx.serial_number = sn;
 
@@ -75,9 +80,12 @@ bool CameraManager::doInit(const std::vector<CameraParams>& configs) {
   return !cameras_.empty();
 }
 
-bool CameraManager::createHandle(const MV_CC_DEVICE_INFO* info, CameraContext& ctx) {
-  int ret = MV_CC_CreateHandle(&ctx.handle, const_cast<MV_CC_DEVICE_INFO*>(info));
-  if (ret != MV_OK) return false;
+bool CameraManager::createHandle(const MV_CC_DEVICE_INFO *info,
+                                 CameraContext &ctx) {
+  int ret =
+      MV_CC_CreateHandle(&ctx.handle, const_cast<MV_CC_DEVICE_INFO *>(info));
+  if (ret != MV_OK)
+    return false;
   ret = MV_CC_OpenDevice(ctx.handle);
   if (ret != MV_OK) {
     MV_CC_DestroyHandle(ctx.handle);
@@ -98,8 +106,8 @@ bool CameraManager::start() {
     CameraContext &ctx = cameras_[i];
     int nRet = MV_CC_StartGrabbing(ctx.handle);
     if (nRet != MV_OK) {
-      std::cerr << "StartGrabbing failed for camera " << i << ": 0x"
-                << std::hex << nRet << std::endl;
+      std::cerr << "StartGrabbing failed for camera " << i << ": 0x" << std::hex
+                << nRet << std::endl;
     } else {
       std::cout << "Camera " << i << " (S/N: " << ctx.serial_number
                 << ") started grabbing." << std::endl;
@@ -158,7 +166,23 @@ void __stdcall CameraManager::imageCallback(unsigned char *pData,
 
 void CameraManager::enqueueImage(CameraContext &ctx, unsigned char *data,
                                  MV_FRAME_OUT_INFO_EX *info) {
-  cv::Mat img(info->nHeight, info->nWidth, CV_8UC1, data);
+  int W = info->nWidth;
+  int H = info->nHeight;
+  int L = info->nFrameLen;
+  cv::Mat img;
+
+  if (L == W * H) {
+    std::cout << "  ➜ Detected Mono8 via FrameLen" << std::endl;
+    img = cv::Mat(H, W, CV_8UC1, data).clone();
+  }
+  else if (L == W * H * 3) {
+    img = cv::Mat(H, W, CV_8UC3, data).clone();
+    cv::cvtColor(img, img, cv::COLOR_RGB2BGR);
+  }
+  else {
+    std::cout << "  ➜ Unknown format, fallback to Mono8" << std::endl;
+    img = cv::Mat(H, W, CV_8UC1, data).clone();
+  }
   std::lock_guard<std::mutex> lock(ctx.mtx);
   ctx.image_queue.push(img.clone());
 }
@@ -171,6 +195,13 @@ void *CameraManager::getHandle(size_t index) const {
 
 int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
   int ret;
+
+  ret = MV_CC_SetEnumValue(dev_handle_, "PixelFormat", PixelType_Gvsp_RGB8_Packed);
+  if (ret != MV_OK)
+    std::cerr << "[WARN] PixelFormat RGB8_Packed failed: 0x"
+              << std::hex << ret << std::dec << std::endl;
+  else
+    std::cout << "[INFO] PixelFormat RGB8_Packed set successfully" << std::endl;
 
   if (config.exposure_auto) {
     _MVCC_FLOATVALUE_T val;

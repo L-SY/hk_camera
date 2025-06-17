@@ -13,6 +13,7 @@
 #include <vector>
 
 struct CameraParams {
+  std::string name;
   std::string serial_number;
 
   int exposure_mode;

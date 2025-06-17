@@ -1,0 +1,11 @@
+<launch>
+    <!-- Load camera configurations from YAML into ROS parameter server -->
+
+    <!-- Run the standalone camera manager node -->
+    <node name="hk_camera_node"
+          pkg="hk_camera"
+          type="hk_camera_node"
+          output="screen">
+        <rosparam file="$(find hk_camera)/config/camera.yaml" command="load"/>
+    </node>
+</launch>
