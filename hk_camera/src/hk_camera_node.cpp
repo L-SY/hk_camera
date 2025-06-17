@@ -57,7 +57,7 @@ void HKCameraNode::reconfigCallback(size_t cam_idx, hk_camera::CameraConfig& con
     config.balance_white_auto = params.balance_white_auto;
     initialize_flags_[cam_idx] = true;
   }
-  ROS_INFO_STREAM(params.balance_white_auto);
+
   ROS_INFO("[%s] Reconfigure: exp=%.1f (auto=%s), gain=%.1f (auto=%s), balance_white_auto=%s, gamma_sel=%d, gamma=%.2f",
            name.c_str(),
            config.exposure_value,
@@ -145,7 +145,7 @@ bool HKCameraNode::loadConfigs() {
 
     // White balance auto
     cfg.balance_white_auto        = static_cast<int>(getDouble(c["white_balance"]["auto"]));
-    ROS_INFO_STREAM(cfg.balance_white_auto);
+
     // ROI
     cfg.width                = static_cast<int>(getDouble(c["roi"]["width"]));
     cfg.height                 = static_cast<int>(getDouble(c["roi"]["height"]));
