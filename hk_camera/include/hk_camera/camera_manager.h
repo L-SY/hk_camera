@@ -17,10 +17,10 @@ struct CameraParams {
   std::string serial_number;
 
   int exposure_mode;
-  float exposure_time;
+  float exposure_value;
   int exposure_auto;
-  int64_t auto_exposure_time_min;
-  int64_t auto_exposure_time_max;
+  int64_t auto_exposure_min;
+  int64_t auto_exposure_max;
 
   float gain_value;
   int gain_auto;

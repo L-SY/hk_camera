@@ -26,6 +26,7 @@ HKCameraNode::HKCameraNode(ros::NodeHandle& nh, ros::NodeHandle& pnh)
 
 void HKCameraNode::initDynamicReconfigure() {
   dyn_servers_.resize(configs_.size());
+  initialize_flags_.resize(configs_.size());
   for (size_t i = 0; i < configs_.size(); ++i) {
     // NodeHandle in camera-specific namespace
     ros::NodeHandle cam_pnh(pnh_, configs_[i].name);
@@ -41,29 +42,44 @@ void HKCameraNode::initDynamicReconfigure() {
 
 void HKCameraNode::reconfigCallback(size_t cam_idx, hk_camera::CameraConfig& config, uint32_t level) {
   const auto& name = configs_[cam_idx].name;
-  ROS_INFO("[%s] Reconfigure: exp=%.1f (auto=%s), gain=%.1f (auto=%s), white_auto=%s, gamma_sel=%d, gamma=%.2f",
+
+  CameraParams params = configs_[cam_idx];
+  if (!initialize_flags_[cam_idx])
+  {
+    config.exposure_auto = params.exposure_auto;
+    config.exposure_value = params.exposure_value;
+    config.auto_exposure_min = params.auto_exposure_min;
+    config.auto_exposure_max = params.auto_exposure_max;
+    config.gain_auto = params.gain_auto;
+    config.gain_value = params.gain_value;
+    config.gamma_selector = params.gamma_selector;
+    config.gamma_value = params.gamma_value;
+    config.balance_white_auto = params.balance_white_auto;
+    initialize_flags_[cam_idx] = true;
+  }
+  ROS_INFO_STREAM(params.balance_white_auto);
+  ROS_INFO("[%s] Reconfigure: exp=%.1f (auto=%s), gain=%.1f (auto=%s), balance_white_auto=%s, gamma_sel=%d, gamma=%.2f",
            name.c_str(),
            config.exposure_value,
            config.exposure_auto ? "true" : "false",
            config.gain_value,
            config.gain_auto ? "true" : "false",
-           config.white_auto ? "true" : "false",
+           config.balance_white_auto ? "true" : "false",
            config.gamma_selector,
            config.gamma_value);
 
-  CameraParams params = configs_[cam_idx];
   // exposure
   params.exposure_auto = config.exposure_auto;
-  params.exposure_time = static_cast<float>(config.exposure_value);
-  params.auto_exposure_time_min = static_cast<int64_t>(config.exposure_min);
-  params.auto_exposure_time_max = static_cast<int64_t>(config.exposure_max);
+  params.exposure_value = static_cast<float>(config.exposure_value);
+  params.auto_exposure_min = static_cast<int64_t>(config.auto_exposure_min);
+  params.auto_exposure_max = static_cast<int64_t>(config.auto_exposure_max);
   // gain
   params.gain_auto = config.gain_auto;
   params.gain_value = static_cast<float>(config.gain_value);
-  params.auto_gain_min = static_cast<float>(config.gain_min);
-  params.auto_gain_max = static_cast<float>(config.gain_max);
+  params.auto_gain_min = static_cast<float>(config.auto_gain_min);
+  params.auto_gain_max = static_cast<float>(config.auto_gain_max);
   // white balance
-  params.balance_white_auto = config.white_auto;
+  params.balance_white_auto = config.balance_white_auto;
   // gamma
   params.gamma_selector = config.gamma_selector;
   params.gamma_value = static_cast<float>(config.gamma_value);
@@ -116,20 +132,20 @@ bool HKCameraNode::loadConfigs() {
 
     // Exposure
     cfg.exposure_mode             = static_cast<int>(getDouble(c["exposure"]["mode"]));
-    cfg.exposure_time             = static_cast<float>(getDouble(c["exposure"]["time_us"]));
+    cfg.exposure_value             = static_cast<float>(getDouble(c["exposure"]["value"]));
     cfg.exposure_auto             = static_cast<int>(getDouble(c["exposure"]["auto"]));
-    cfg.auto_exposure_time_min    = static_cast<int64_t>(getDouble(c["exposure"]["ae_lower_us"]));
-    cfg.auto_exposure_time_max    = static_cast<int64_t>(getDouble(c["exposure"]["ae_upper_us"]));
+    cfg.auto_exposure_min    = static_cast<int64_t>(getDouble(c["exposure"]["min"]));
+    cfg.auto_exposure_max    = static_cast<int64_t>(getDouble(c["exposure"]["max"]));
 
     // Gain
-    cfg.gain_value                = static_cast<float>(getDouble(c["gain"]["value_db"]));
+    cfg.gain_value                = static_cast<float>(getDouble(c["gain"]["value"]));
     cfg.gain_auto                 = static_cast<int>(getDouble(c["gain"]["auto"]));
-    cfg.auto_gain_min             = static_cast<float>(getDouble(c["gain"]["gain_lower_db"]));
-    cfg.auto_gain_max             = static_cast<float>(getDouble(c["gain"]["gain_upper_db"]));
+    cfg.auto_gain_min             = static_cast<float>(getDouble(c["gain"]["min"]));
+    cfg.auto_gain_max             = static_cast<float>(getDouble(c["gain"]["max"]));
 
     // White balance auto
     cfg.balance_white_auto        = static_cast<int>(getDouble(c["white_balance"]["auto"]));
-
+    ROS_INFO_STREAM(cfg.balance_white_auto);
     // ROI
     cfg.width                = static_cast<int>(getDouble(c["roi"]["width"]));
     cfg.height                 = static_cast<int>(getDouble(c["roi"]["height"]));

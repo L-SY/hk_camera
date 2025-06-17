@@ -211,22 +211,17 @@ int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
 
 //  ret = MV_CC_SetEnumValue(dev_handle_, "PixelFormat",
 //                           PixelType_Gvsp_BayerRG8);
-  if (ret != MV_OK)
-    std::cerr << "[WARN] PixelFormat RGB8_Packed failed: 0x" << std::hex << ret
-              << std::dec << std::endl;
-  else
-    std::cout << "[INFO] PixelFormat RGB8_Packed set successfully" << std::endl;
 
   if (config.exposure_auto) {
     _MVCC_FLOATVALUE_T val;
     ret = MV_CC_SetIntValueEx(dev_handle_, "AutoExposureTimeLowerLimit",
-                              config.auto_exposure_time_min);
+                              config.auto_exposure_min);
     if (ret != MV_OK)
       std::cerr << "[WARN] AutoExposureTimeLowerLimit failed: 0x" << std::hex
                 << ret << std::dec << std::endl;
 
     ret = MV_CC_SetIntValueEx(dev_handle_, "AutoExposureTimeUpperLimit",
-                              config.auto_exposure_time_max);
+                              config.auto_exposure_max);
     if (ret != MV_OK)
       std::cerr << "[WARN] AutoExposureTimeUpperLimit failed: 0x" << std::hex
                 << ret << std::dec << std::endl;
@@ -239,7 +234,7 @@ int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
 
     ret = MV_CC_GetFloatValue(dev_handle_, "ExposureTime", &val);
     if (ret == MV_OK) {
-      config.exposure_time = val.fCurValue;
+      config.exposure_value = val.fCurValue;
     } else {
       std::cerr << "[WARN] Get ExposureTime failed: 0x" << std::hex << ret
                 << std::dec << std::endl;
@@ -252,7 +247,7 @@ int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
                 << std::dec << std::endl;
 
     ret =
-        MV_CC_SetFloatValue(dev_handle_, "ExposureTime", config.exposure_time);
+        MV_CC_SetFloatValue(dev_handle_, "ExposureTime", config.exposure_value);
     if (ret != MV_OK)
       std::cerr << "[WARN] Set ExposureTime failed: 0x" << std::hex << ret
                 << std::dec << std::endl;
@@ -305,17 +300,18 @@ int CameraManager::setParameter(void *dev_handle_, CameraParams &config) {
     }
   }
 
-  ret = MV_CC_SetEnumValue(dev_handle_, "BalanceWhiteAuto",
-                           MV_BALANCEWHITE_AUTO_OFF);
-  if (ret != MV_OK)
-    std::cerr << "[WARN] Disable WhiteAuto failed: 0x" << std::hex << ret
-              << std::dec << std::endl;
-
   if (config.balance_white_auto) {
     ret = MV_CC_SetEnumValue(dev_handle_, "BalanceWhiteAuto",
                              MV_BALANCEWHITE_AUTO_CONTINUOUS);
     if (ret != MV_OK)
       std::cerr << "[WARN] WhiteAuto CONTINUOUS failed: 0x" << std::hex << ret
+                << std::dec << std::endl;
+  }
+  else{
+    ret = MV_CC_SetEnumValue(dev_handle_, "BalanceWhiteAuto",
+                             MV_BALANCEWHITE_AUTO_OFF);
+    if (ret != MV_OK)
+      std::cerr << "[WARN] Disable WhiteAuto failed: 0x" << std::hex << ret
                 << std::dec << std::endl;
   }
 

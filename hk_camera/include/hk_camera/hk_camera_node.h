@@ -29,6 +29,7 @@ private:
   void initDynamicReconfigure();
   void reconfigCallback(size_t cam_idx, hk_camera::CameraConfig& config, uint32_t level);
 
+  std::vector<bool> initialize_flags_;
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
   image_transport::ImageTransport it_;

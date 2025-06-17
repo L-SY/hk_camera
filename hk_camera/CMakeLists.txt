@@ -51,13 +51,3 @@ target_link_libraries(test_camera
         pthread
         opencv_core
         opencv_highgui)
-
-add_executable(test_parameter
-        test/test_parameter.cpp
-        src/camera_manager.cpp)
-target_link_libraries(test_parameter
-        ${catkin_LIBRARIES}
-        MvCameraControl
-        pthread
-        opencv_core
-        opencv_highgui)
