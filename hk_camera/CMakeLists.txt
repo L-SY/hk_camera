@@ -7,14 +7,19 @@ find_package(catkin REQUIRED COMPONENTS
         pluginlib
         image_transport
         cv_bridge
+        dynamic_reconfigure
 )
 
 find_package(OpenCV REQUIRED)
 
+generate_dynamic_reconfigure_options(
+        cfg/camera.cfg
+)
+
 catkin_package(
         INCLUDE_DIRS include
         LIBRARIES camera_manager_nodelet
-        CATKIN_DEPENDS roscpp nodelet pluginlib image_transport cv_bridge sensor_msgs std_msgs
+        CATKIN_DEPENDS roscpp nodelet pluginlib image_transport cv_bridge sensor_msgs std_msgs dynamic_reconfigure
         DEPENDS OpenCV
 )
 
@@ -29,7 +34,7 @@ link_directories(
 )
 
 add_executable(hk_camera_node
-        src/hk_camera_ros_node.cpp
+        src/hk_camera_node.cpp
         src/camera_manager.cpp
 )
 target_link_libraries(hk_camera_node

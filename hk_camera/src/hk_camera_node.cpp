@@ -2,9 +2,9 @@
 // Created by lsy on 25-6-17.
 //
 
-#include "hk_camera/hk_camera_ros_node.h"
+#include "hk_camera/hk_camera_node.h"
 
-HKCameraROSNode::HKCameraROSNode(ros::NodeHandle& nh, ros::NodeHandle& pnh)
+HKCameraNode::HKCameraNode(ros::NodeHandle& nh, ros::NodeHandle& pnh)
     : nh_(nh), pnh_(pnh), it_(nh_) {
   // load loop rate
   pnh_.param("loop_rate_hz", loop_rate_hz_, 30);
@@ -22,7 +22,7 @@ HKCameraROSNode::HKCameraROSNode(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   setupPublishers();
 }
 
-bool HKCameraROSNode::loadConfigs() {
+bool HKCameraNode::loadConfigs() {
   XmlRpc::XmlRpcValue cam_list;
   if (!pnh_.getParam("cameras", cam_list) ||
       cam_list.getType() != XmlRpc::XmlRpcValue::TypeArray) {
@@ -84,7 +84,7 @@ bool HKCameraROSNode::loadConfigs() {
   return !configs_.empty();
 }
 
-void HKCameraROSNode::setupPublishers() {
+void HKCameraNode::setupPublishers() {
   pubs_.clear();
   for (const auto& cfg : configs_) {
     std::string topic = "/hk_camera/" + cfg.name + "/image_raw";
@@ -93,7 +93,7 @@ void HKCameraROSNode::setupPublishers() {
   }
 }
 
-void HKCameraROSNode::spin() {
+void HKCameraNode::spin() {
   ros::Rate rate(loop_rate_hz_);
   while (ros::ok()) {
     for (int i = 0; i < cam_mgr_.numCameras(); ++i) {
@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "camera_manager_node");
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
-  HKCameraROSNode node(nh, pnh);
+  HKCameraNode node(nh, pnh);
   node.spin();
   return 0;
 }

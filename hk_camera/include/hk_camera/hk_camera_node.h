@@ -12,15 +12,18 @@
 #include <vector>
 #include <string>
 
+#include <dynamic_reconfigure/server.h>
+#include <hk_camera/CameraConfig.h>
+
 /**
  * ROS node to manage multiple cameras via hk_camera::CameraManager
  * - loads parameters from ROS param server
  * - initializes CameraManager with configs
  * - publishes images on separate topics per camera
  */
-class HKCameraROSNode {
+class HKCameraNode {
 public:
-  HKCameraROSNode(ros::NodeHandle& nh, ros::NodeHandle& pnh);
+  HKCameraNode(ros::NodeHandle& nh, ros::NodeHandle& pnh);
   void spin();
 
 private:
