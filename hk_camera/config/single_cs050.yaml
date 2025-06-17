@@ -13,7 +13,7 @@ cameras:
       max: 22.0 # 自动增益上限
       value: 6.0       # 增益值 (dB)
     white_balance:
-      auto: false
+      auto: true
     roi:
       width: 2448
       height: 2048

@@ -2,16 +2,16 @@ cameras:
   - name: left_camera
     serial_number: "DA2007593"
     exposure:
-      auto: false
-      ae_lower_us: 1000   # 自动曝光下限
-      ae_upper_us: 10000  # 自动曝光上限
+      auto: true
+      min: 15   # 自动曝光下限
+      max: 13319  # 自动曝光上限
       mode: 0             # 0: Timed, 1: TriggerWidth
-      time_us: 5000       # 曝光时间（us）
+      value: 5000       # 曝光时间（us）
     gain:
-      auto: false         # 是否自动增益
-      gain_lower_db: 0.0  # 自动增益下限
-      gain_upper_db: 24.0 # 自动增益上限
-      value_db: 6.0       # 增益值 (dB)
+      auto: true         # 是否自动增益
+      min: 0.0  # 自动增益下限
+      max: 22.0 # 自动增益上限
+      value: 6.0       # 增益值 (dB)
     white_balance:
       auto: true
     roi:
@@ -23,16 +23,16 @@ cameras:
   - name: right_camera
     serial_number: "DA5564595"
     exposure:
-      auto: false
-      ae_lower_us: 1000   # 自动曝光下限
-      ae_upper_us: 10000  # 自动曝光上限
+      auto: true
+      min: 15   # 自动曝光下限
+      max: 13319  # 自动曝光上限
       mode: 0             # 0: Timed, 1: TriggerWidth
-      time_us: 5000       # 曝光时间（us）
+      value: 5000       # 曝光时间（us）
     gain:
-      auto: false         # 是否自动增益
-      gain_lower_db: 0.0  # 自动增益下限
-      gain_upper_db: 24.0 # 自动增益上限
-      value_db: 6.0       # 增益值 (dB)
+      auto: true         # 是否自动增益
+      min: 0.0  # 自动增益下限
+      max: 22.0 # 自动增益上限
+      value: 6.0       # 增益值 (dB)
     white_balance:
       auto: true
     roi:
