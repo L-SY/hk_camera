@@ -1,0 +1,23 @@
+cameras:
+  - name: agv
+    serial_number: "DA5564595"
+    exposure:
+      auto: true
+      min: 15   # 自动曝光下限
+      max: 13319  # 自动曝光上限
+      mode: 0             # 0: Timed, 1: TriggerWidth
+      value: 800       # 曝光时间（us）
+    gain:
+      auto: true         # 是否自动增益
+      min: 0.0  # 自动增益下限
+      max: 22.0 # 自动增益上限
+      value: 0.0       # 增益值 (dB)
+    white_balance:
+      auto: true
+    roi:
+      width: 1624
+      height: 1240
+      offset_x: 0
+      offset_y: 0
+
+loop_rate_hz: 100

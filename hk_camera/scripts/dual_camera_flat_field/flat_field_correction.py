@@ -8,7 +8,8 @@ from cv_bridge import CvBridge
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 
 bridge = CvBridge()
-FLAT_DIR = ""
+base_dir = os.path.dirname(os.path.abspath(__file__))
+FLAT_DIR = base_dir
 os.makedirs(FLAT_DIR, exist_ok=True)
 
 def callback(img_left_msg, img_right_msg):
@@ -34,8 +35,8 @@ def callback(img_left_msg, img_right_msg):
 def main():
     rospy.init_node('flatfield_capture_node')
 
-    left_sub = Subscriber("/hk_camera_left/image_raw", Image)
-    right_sub = Subscriber("/hk_camera_right/image_raw", Image)
+    left_sub = Subscriber("/hk_camera/left_camera/image_raw", Image)
+    right_sub = Subscriber("/hk_camera/right_camera/image_raw", Image)
 
     sync = ApproximateTimeSynchronizer([left_sub, right_sub], queue_size=10, slop=0.1)
     sync.registerCallback(callback)
